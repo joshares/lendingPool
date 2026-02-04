@@ -7,36 +7,36 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 contract Lending is Ownable, ReentrancyGuard {
-  using SafeERC20 for IERC20;
+    using SafeERC20 for IERC20;
 
-  // constants
-  uint256 private constant PERCENTAGE_FACTOR = 10000;
-  uint256 private constant INTEREST_RATE_PRECISION = 1e18;
-  uint256 private constant SECONDS_PER_YEAR = 365 days;
-  uint256 private constant MIN_HEALTH_FACTOR = PERCENTAGE_FACTOR;
-  uint256 private constant LIQUIDATION_BONUS = 500; // 5%
+    // constants
+    uint256 private constant PERCENTAGE_FACTOR = 10000;
+    uint256 private constant INTEREST_RATE_PRECISION = 1e18;
+    uint256 private constant SECONDS_PER_YEAR = 365 days;
+    uint256 private constant MIN_HEALTH_FACTOR = PERCENTAGE_FACTOR;
+    uint256 private constant LIQUIDATION_BONUS = 500; // 5%
 
-  // state variables
-  IERC20 public immutable collateralToken;
-  IERC20 public immutable assetToken;
-  IPriceOracle public priceOracle;
-  uint256 public maxLTV; 
-  uint256 public liquidationThreshold;
-  uint256 public borrowRate;
-  uint256 public supplyRate;
-  uint256 public totalSupplied;
-  uint256 public totalBorrowed;
-  uint256 public totalCollateral;
+    // state variables
+    IERC20 public immutable collateralToken;
+    IERC20 public immutable assetToken;
+    IPriceOracle public priceOracle;
+    uint256 public maxLTV;
+    uint256 public liquidationThreshold;
+    uint256 public borrowRate;
+    uint256 public supplyRate;
+    uint256 public totalSupplied;
+    uint256 public totalBorrowed;
+    uint256 public totalCollateral;
 
-  mapping(address => uint256) public suppliedAmount;
-  mapping(address => uint256) public lastSupplyAccrual;
-  mapping(address => uint256) public accumulatedSupplyInterest;
-  mapping(address => uint256) public collateralDeposits;
-  mapping(address => uint256) public borrowedAmount;
-  mapping(address => uint256) public lastBorrowAccrual;
-  mapping(address => uint256) public accumulatedBorrowInterest;
+    mapping(address => uint256) public suppliedAmount;
+    mapping(address => uint256) public lastSupplyAccrual;
+    mapping(address => uint256) public accumulatedSupplyInterest;
+    mapping(address => uint256) public collateralDeposits;
+    mapping(address => uint256) public borrowedAmount;
+    mapping(address => uint256) public lastBorrowAccrual;
+    mapping(address => uint256) public accumulatedBorrowInterest;
 
-  //  Events
+    //  Events
     event AssetSupplied(address indexed user, uint256 amount);
     event AssetWithdrawn(address indexed user, uint256 amount, uint256 interestEarned);
     event SupplyInterestAccrued(address indexed user, uint256 interest);
@@ -46,10 +46,7 @@ contract Lending is Ownable, ReentrancyGuard {
     event Repaid(address indexed user, uint256 amount, uint256 remainingDebt);
     event BorrowInterestAccrued(address indexed user, uint256 interest);
     event Liquidated(
-        address indexed borrower,
-        address indexed liquidator,
-        uint256 debtCovered,
-        uint256 collateralSeized
+        address indexed borrower, address indexed liquidator, uint256 debtCovered, uint256 collateralSeized
     );
 
     // Errors
@@ -62,10 +59,7 @@ contract Lending is Ownable, ReentrancyGuard {
     error NoDebt();
     error InsufficientLiquidity();
 
-
-
-
-  constructor(
+    constructor(
         address _collateralToken,
         address _assetToken,
         address _priceOracle,
@@ -73,7 +67,7 @@ contract Lending is Ownable, ReentrancyGuard {
         uint256 _liquidationThreshold,
         uint256 _borrowRate,
         uint256 _supplyRate
-  )Ownable(msg.sender) {
+    ) Ownable(msg.sender) {
         require(_collateralToken != address(0), "Invalid collateral");
         require(_assetToken != address(0), "Invalid asset");
         require(_priceOracle != address(0), "Invalid oracle");
@@ -87,11 +81,11 @@ contract Lending is Ownable, ReentrancyGuard {
         liquidationThreshold = _liquidationThreshold;
         borrowRate = _borrowRate;
         supplyRate = _supplyRate;
-  }
+    }
 
-  // lending/ supply functions
+    // lending/ supply functions
 
-  function supply(uint256 amount)external nonReentrant {
+    function supply(uint256 amount) external nonReentrant {
         if (amount == 0) revert ZeroAmount();
 
         _accrueSupplyInterest(msg.sender);
@@ -103,7 +97,7 @@ contract Lending is Ownable, ReentrancyGuard {
         assetToken.safeTransferFrom(msg.sender, address(this), amount);
 
         emit AssetSupplied(msg.sender, amount);
-  }
+    }
 
     function withdrawSupply(uint256 amount) external nonReentrant {
         if (amount == 0) revert ZeroAmount();
@@ -130,12 +124,11 @@ contract Lending is Ownable, ReentrancyGuard {
 
         assetToken.safeTransfer(msg.sender, amount);
         emit AssetWithdrawn(msg.sender, amount, interestEarned);
-        
-  }
+    }
 
     function claimSupplyInterest() external nonReentrant {
         _accrueSupplyInterest(msg.sender);
-        
+
         uint256 interest = accumulatedSupplyInterest[msg.sender];
         if (interest == 0) revert ZeroAmount();
 
@@ -144,14 +137,14 @@ contract Lending is Ownable, ReentrancyGuard {
         if (interest > available) revert InsufficientLiquidity();
 
         accumulatedSupplyInterest[msg.sender] = 0;
-        
+
         assetToken.safeTransfer(msg.sender, interest);
-        
+
         emit AssetWithdrawn(msg.sender, interest, interest);
     }
 
-  //  collateral functions
-  
+    //  collateral functions
+
     function depositCollateral(uint256 amount) external nonReentrant {
         if (amount == 0) revert ZeroAmount();
 
@@ -162,8 +155,7 @@ contract Lending is Ownable, ReentrancyGuard {
 
         emit CollateralDeposited(msg.sender, amount);
     }
-  
-  
+
     function withdrawCollateral(uint256 amount) external nonReentrant {
         if (amount == 0) revert ZeroAmount();
         if (collateralDeposits[msg.sender] < amount) revert InsufficientCollateral();
@@ -172,7 +164,7 @@ contract Lending is Ownable, ReentrancyGuard {
         _accrueBorrowInterest(msg.sender);
 
         uint256 newCollateral = collateralDeposits[msg.sender] - amount;
-        
+
         // Check health factor if user has debt
         if (borrowedAmount[msg.sender] > 0) {
             uint256 hf = _calculateHealthFactor(newCollateral, borrowedAmount[msg.sender]);
@@ -189,7 +181,7 @@ contract Lending is Ownable, ReentrancyGuard {
 
     // borrowing functions
 
-     function borrow(uint256 amount) external nonReentrant {
+    function borrow(uint256 amount) external nonReentrant {
         if (amount == 0) revert ZeroAmount();
         if (collateralDeposits[msg.sender] == 0) revert InsufficientCollateral();
 
@@ -199,7 +191,7 @@ contract Lending is Ownable, ReentrancyGuard {
         // Calculate max borrowable
         uint256 collateralValue = _getCollateralValue(collateralDeposits[msg.sender]);
         uint256 maxBorrow = (collateralValue * maxLTV) / PERCENTAGE_FACTOR;
-        
+
         uint256 newTotalDebt = borrowedAmount[msg.sender] + amount;
         if (newTotalDebt > maxBorrow) revert BorrowExceedsLimit();
 
@@ -217,8 +209,8 @@ contract Lending is Ownable, ReentrancyGuard {
 
         emit Borrowed(msg.sender, amount, newTotalDebt);
     }
-      
-     function repay(uint256 amount) external nonReentrant {
+
+    function repay(uint256 amount) external nonReentrant {
         if (amount == 0) revert ZeroAmount();
         if (borrowedAmount[msg.sender] == 0) revert NoDebt();
 
@@ -239,18 +231,15 @@ contract Lending is Ownable, ReentrancyGuard {
         emit Repaid(msg.sender, repayAmount, borrowedAmount[msg.sender]);
     }
 
-  // liquidation functions
+    // liquidation functions
 
-     function liquidate(address borrower, uint256 debtToCover) external nonReentrant {
+    function liquidate(address borrower, uint256 debtToCover) external nonReentrant {
         if (debtToCover == 0) revert ZeroAmount();
 
         _accrueBorrowInterest(borrower);
 
-        uint256 hf = _calculateHealthFactor(
-            collateralDeposits[borrower],
-            borrowedAmount[borrower]
-        );
-        
+        uint256 hf = _calculateHealthFactor(collateralDeposits[borrower], borrowedAmount[borrower]);
+
         if (hf >= MIN_HEALTH_FACTOR) revert PositionHealthy();
 
         uint256 debt = borrowedAmount[borrower];
@@ -288,28 +277,25 @@ contract Lending is Ownable, ReentrancyGuard {
         return suppliedAmount[user] + accumulatedSupplyInterest[user] + interest;
     }
 
-     function getBorrowerDebt(address user) external view returns (uint256) {
+    function getBorrowerDebt(address user) external view returns (uint256) {
         return _getCurrentDebt(user);
     }
 
     function canLiquidate(address borrower) external view returns (bool) {
-    uint256 debt = _getCurrentDebt(borrower);
-    if (debt == 0) return false;
+        uint256 debt = _getCurrentDebt(borrower);
+        if (debt == 0) return false;
 
-    uint256 hf = _calculateHealthFactor(
-        collateralDeposits[borrower],
-        debt
-    );
+        uint256 hf = _calculateHealthFactor(collateralDeposits[borrower], debt);
 
-    return hf < MIN_HEALTH_FACTOR;
-}
+        return hf < MIN_HEALTH_FACTOR;
+    }
 
     function getUtilizationRate() external view returns (uint256) {
         if (totalSupplied == 0) return 0;
         return (totalBorrowed * PERCENTAGE_FACTOR) / totalSupplied;
     }
 
-     function getAvailableLiquidity() external view returns (uint256) {
+    function getAvailableLiquidity() external view returns (uint256) {
         return assetToken.balanceOf(address(this));
     }
 
@@ -326,8 +312,7 @@ contract Lending is Ownable, ReentrancyGuard {
         return maxBorrow > currentDebt ? maxBorrow - currentDebt : 0;
     }
 
-  
-  // internal functions
+    // internal functions
 
     function _accrueSupplyInterest(address user) internal {
         uint256 supplied = suppliedAmount[user];
@@ -342,8 +327,7 @@ contract Lending is Ownable, ReentrancyGuard {
         uint256 timeElapsed = block.timestamp - lastAccrual;
         if (timeElapsed == 0) return;
 
-        uint256 interest = (supplied * supplyRate * timeElapsed) / 
-                          (INTEREST_RATE_PRECISION * SECONDS_PER_YEAR);
+        uint256 interest = (supplied * supplyRate * timeElapsed) / (INTEREST_RATE_PRECISION * SECONDS_PER_YEAR);
 
         if (interest > 0) {
             accumulatedSupplyInterest[user] += interest;
@@ -353,7 +337,7 @@ contract Lending is Ownable, ReentrancyGuard {
         lastSupplyAccrual[user] = block.timestamp;
     }
 
-     function _calculatePendingSupplyInterest(address user) internal view returns (uint256) {
+    function _calculatePendingSupplyInterest(address user) internal view returns (uint256) {
         uint256 supplied = suppliedAmount[user];
         if (supplied == 0) return 0;
 
@@ -361,10 +345,9 @@ contract Lending is Ownable, ReentrancyGuard {
         if (lastAccrual == 0 || lastAccrual == block.timestamp) return 0;
 
         uint256 timeElapsed = block.timestamp - lastAccrual;
-        return (supplied * supplyRate * timeElapsed) / 
-               (INTEREST_RATE_PRECISION * SECONDS_PER_YEAR);
+        return (supplied * supplyRate * timeElapsed) / (INTEREST_RATE_PRECISION * SECONDS_PER_YEAR);
     }
-    
+
     function _accrueBorrowInterest(address user) internal {
         uint256 borrowed = borrowedAmount[user];
         if (borrowed == 0) return;
@@ -378,8 +361,7 @@ contract Lending is Ownable, ReentrancyGuard {
         uint256 timeElapsed = block.timestamp - lastAccrual;
         if (timeElapsed == 0) return;
 
-        uint256 interest = (borrowed * borrowRate * timeElapsed) / 
-                          (INTEREST_RATE_PRECISION * SECONDS_PER_YEAR);
+        uint256 interest = (borrowed * borrowRate * timeElapsed) / (INTEREST_RATE_PRECISION * SECONDS_PER_YEAR);
 
         if (interest > 0) {
             borrowedAmount[user] += interest;
@@ -398,28 +380,21 @@ contract Lending is Ownable, ReentrancyGuard {
         if (lastAccrual == 0 || lastAccrual == block.timestamp) return borrowed;
 
         uint256 timeElapsed = block.timestamp - lastAccrual;
-        uint256 interest = (borrowed * borrowRate * timeElapsed) / 
-                          (INTEREST_RATE_PRECISION * SECONDS_PER_YEAR);
+        uint256 interest = (borrowed * borrowRate * timeElapsed) / (INTEREST_RATE_PRECISION * SECONDS_PER_YEAR);
 
         return borrowed + interest;
     }
 
-    
+    function _calculateHealthFactor(uint256 collateralAmount, uint256 borrowed) internal view returns (uint256) {
+        if (borrowed == 0) return type(uint256).max;
 
-    function _calculateHealthFactor(uint256 collateralAmount, uint256 borrowed) 
-    internal 
-    view 
-    returns (uint256) 
-{
-    if (borrowed == 0) return type(uint256).max;
+        uint256 collateralValue = _getCollateralValue(collateralAmount);
+        uint256 adjustedCollateral = (collateralValue * liquidationThreshold) / PERCENTAGE_FACTOR;
 
-    uint256 collateralValue = _getCollateralValue(collateralAmount); 
-    uint256 adjustedCollateral = (collateralValue * liquidationThreshold) / PERCENTAGE_FACTOR; 
+        uint256 HF = (adjustedCollateral * PERCENTAGE_FACTOR) / borrowed; // returns in 1e4 units
 
-    uint256 HF = (adjustedCollateral * PERCENTAGE_FACTOR) / borrowed; // returns in 1e4 units
-
-    return HF;
-}
+        return HF;
+    }
 
     function _getCollateralValue(uint256 amount) internal view returns (uint256) {
         if (amount == 0) return 0;
@@ -429,10 +404,10 @@ contract Lending is Ownable, ReentrancyGuard {
         return (amount * price) / (10 ** oracleDecimals);
     }
 
-    function _calculateCollateralToSeize(uint256 debtToCover, uint256 collateralPrice, uint8 oracleDecimals) 
-        internal 
-        pure 
-        returns (uint256) 
+    function _calculateCollateralToSeize(uint256 debtToCover, uint256 collateralPrice, uint8 oracleDecimals)
+        internal
+        pure
+        returns (uint256)
     {
         uint256 bonusMultiplier = PERCENTAGE_FACTOR + LIQUIDATION_BONUS;
         uint256 valueToSeize = (debtToCover * bonusMultiplier) / PERCENTAGE_FACTOR;
@@ -441,7 +416,7 @@ contract Lending is Ownable, ReentrancyGuard {
 
     // admin funtion
 
-     function setBorrowRate(uint256 newRate) external onlyOwner {
+    function setBorrowRate(uint256 newRate) external onlyOwner {
         borrowRate = newRate;
     }
 
@@ -459,12 +434,9 @@ contract Lending is Ownable, ReentrancyGuard {
         require(newThreshold > maxLTV, "Threshold must be > LTV");
         liquidationThreshold = newThreshold;
     }
-
-
-
 }
 
 interface IPriceOracle {
     function getPrice(address asset) external view returns (uint256);
-     function decimals() external view returns (uint8);
+    function decimals() external view returns (uint8);
 }
