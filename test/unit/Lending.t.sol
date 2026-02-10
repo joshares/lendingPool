@@ -2,19 +2,10 @@
 pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
-import "../src/Lending.sol";
-import "../src/MockPriceOracle.sol";
+import "../../src/Lending.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-
-contract MockERC20 is ERC20 {
-    constructor(string memory name, string memory symbol) ERC20(name, symbol) {
-        _mint(msg.sender, 1_000_000 * 10 ** 18);
-    }
-
-    function mint(address to, uint256 amount) external {
-        _mint(to, amount);
-    }
-}
+import "../mocks/MockPriceOracle.sol";
+import {MockERC20} from "../mocks/ERC20Mock.sol";
 
 contract LendingTest is Test {
     Lending public pool;
@@ -440,7 +431,7 @@ contract LendingTest is Test {
         }
     }
 
-    function test_ZeroSupply() public {
+    function test_ZeroSupply() public view {
         assertEq(pool.getUtilizationRate(), 0);
         assertEq(pool.getAvailableLiquidity(), 0);
     }

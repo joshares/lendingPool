@@ -16,6 +16,11 @@ line_length = 100
 tab_width = 4
 bracket_spacing = false
 
+[invariant]
+runs = 1000
+depth = 128
+fail_on_revert = true
+
 [rpc_endpoints]
 mainnet = "${ETHEREUM_MAINNET_RPC}"
 sepolia = "${SEPOLIA_RPC}"
